@@ -8,7 +8,9 @@ TaskEnum_StateType = {
 }
 
 ---@class Task
-Task = {}
+local Task = {}
+
+CO.Task = Task
 
 function Task.New(func,tag)
     ---@type Task
@@ -21,7 +23,7 @@ end
 ---@param tag string
 function Task:Init(func,tag)
     local wrappedFunc = function (...)
-        local res,suc = SafeCall(func,...)
+        local res,suc = CO.SafeCall(func,...)
         if res == nil then
             res = {}
         end
@@ -163,7 +165,7 @@ end
 function Task:Fail()
     if self.state ~= TaskEnum_StateType.Success and self:SetState(TaskEnum_StateType.Error) then
         for i = 1, #self.errorListeners do
-            SafeCall(self.errorListeners[i],self)
+            CO.SafeCall(self.errorListeners[i],self)
         end
         self.errorListeners = {}
     end
@@ -172,7 +174,7 @@ end
 function Task:Success()
     if self.state ~= TaskEnum_StateType.Error and self:SetState(TaskEnum_StateType.Success) then
         for i = 1, #self.successListeners do
-            SafeCall(self.successListeners[i],self)
+            CO.SafeCall(self.successListeners[i],self)
         end
         self.successListeners = {}
     end
@@ -222,5 +224,5 @@ function Task:GetTaskStackTrace()
 end
 
 function Task:ToString()
-    return string.format('task:[tag = %s state = %s]',self.tag,Misc:EnumValue2Name(TaskEnum_StateType,self.state))
+    return string.format('task:[tag = %s state = %s]',self.tag,CO.Misc:EnumValue2Name(TaskEnum_StateType,self.state))
 end

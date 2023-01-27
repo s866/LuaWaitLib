@@ -1,4 +1,5 @@
-Misc = {}
+local Misc = {}
+CO.Misc = Misc
 
 function Misc:EnumValue2Name(eunm,enumValue)
     for key, value in pairs(eunm) do
@@ -41,14 +42,15 @@ COWaitEnum_TimeoutOpt = {
 }
 
 
-COWait = {}
+local Wait = {}
+CO.Wait = Wait
 
-function COWait:Wait(timeSecond)
+function Wait:Wait(timeSecond)
     if timeSecond == nil then return end
     if timeSecond == 0 then return end
 
     ---@type CoroutineReturnInfo
-    local retData = {waitWrapperIns = TimeWaitWrapper.New(timeSecond)}
+    local retData = {waitWrapperIns = CO.TimeWaitWrapper.New(timeSecond)}
     coroutine.yield(retData)
 
 end
@@ -57,7 +59,7 @@ end
 ---@param timeout ?number 超时时间
 ---@param timeoutOpt ?COWaitEnum_TimeoutOpt （默认Break）超时后的协程是否继续
 ---@param errorProcessData ?COWait_EventErrorProcessData （默认opt为DoNothing）等待的event出现错误后的处理
-function COWait:WaitEvent(event,timeout,timeoutOpt,errorProcessData)
+function Wait:WaitEvent(event,timeout,timeoutOpt,errorProcessData)
     return self:WaitAllEvents({event},timeout,timeoutOpt,errorProcessData)
 end
 
@@ -65,7 +67,7 @@ end
 ---@param timeout ?number 超时时间
 ---@param timeoutOpt ?COWaitEnum_TimeoutOpt （默认Break）超时后的协程是否继续
 ---@param errorProcessData ?COWait_EventErrorProcessData （默认opt为DoNothing）等待的event出现错误后的处理
-function COWait:WaitAllEvents(events,timeout,timeoutOpt,errorProcessData)
+function Wait:WaitAllEvents(events,timeout,timeoutOpt,errorProcessData)
     return self:WaitEvents_Internal(events,COWaitEnum_WaitTaskOpt.WaitAll,timeout,timeoutOpt,errorProcessData)
 end
 
@@ -73,7 +75,7 @@ end
 ---@param timeout ?number 超时时间
 ---@param timeoutOpt ?COWaitEnum_TimeoutOpt （默认Break）超时后的协程是否继续
 ---@param errorProcessData ?COWait_EventErrorProcessData （默认opt为DoNothing）等待的event出现错误后的处理
-function COWait:WaitAnyEvents(events,timeout,timeoutOpt,errorProcessData)
+function Wait:WaitAnyEvents(events,timeout,timeoutOpt,errorProcessData)
     return self:WaitEvents_Internal(events,COWaitEnum_WaitTaskOpt.WaitAny,timeout,timeoutOpt,errorProcessData)
 end
 
@@ -84,7 +86,7 @@ end
 ---@param timeoutOpt ?COWaitEnum_TimeoutOpt （默认Break）超时后的协程是否继续
 ---@param errorProcessData ?COWait_EventErrorProcessData （默认opt为DoNothing）等待的event出现错误后的处理
 ---@return boolean ;是否成功
-function COWait:WaitEvents_Internal(events,eventWaitOpt,timeout,timeoutOpt,errorProcessData)
+function Wait:WaitEvents_Internal(events,eventWaitOpt,timeout,timeoutOpt,errorProcessData)
     if events == nil then return true end
     if errorProcessData == nil then
         errorProcessData = {opt = COWaitEnum_EventErrorOpt.DoNothing}
@@ -101,7 +103,7 @@ function COWait:WaitEvents_Internal(events,eventWaitOpt,timeout,timeoutOpt,error
     
     if allEnd then return true end
 
-    local eventWrapper = EventsTimeoutWaitWrapper.New(events,eventWaitOpt,timeout,timeoutOpt,errorProcessData)
+    local eventWrapper = CO.EventsTimeoutWaitWrapper.New(events,eventWaitOpt,timeout,timeoutOpt,errorProcessData)
     ---@type CoroutineReturnInfo
     local retData = {waitWrapperIns = eventWrapper}
     coroutine.yield(retData)
@@ -111,10 +113,10 @@ end
 
 
 
-function COWait:WaitFrameCount(count)
+function Wait:WaitFrameCount(count)
     if count <= 0 then return end
 
-    local wrapper = FrameWaitWrapper.New(count)
+    local wrapper = CO.FrameWaitWrapper.New(count)
     ---@type CoroutineReturnInfo
     local retData = {waitWrapperIns = wrapper}
     coroutine.yield(retData)

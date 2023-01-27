@@ -9,9 +9,9 @@ require 'Lib'
 CoroutineFactory = {}
 ---@type Task[]
 CoroutineFactory.Coroutines_NextFrameRun = {}
-CoroutineFactory.CoroutineStack = Stack.New()
+CoroutineFactory.CoroutineStack = CO.Stack.New()
 
-CoroutineFactory.debug = GetDebugFlag()
+CoroutineFactory.debug = CO.GetDebugFlag()
 CoroutineFactory.MAX_WAIT_TIME = 100
 
 
@@ -32,7 +32,7 @@ end
 
 function CoroutineFactory:Clean()
     self.Coroutines_NextFrameRun = {}
-    self.CoroutineStack = Stack.New()
+    self.CoroutineStack = CO.Stack.New()
 
 end
 
@@ -54,7 +54,7 @@ end
 function CoroutineFactory:CreateTask(tag,func,autoStart)
     if autoStart == nil then autoStart = true end
     
-    local task = Task.New(func,tag)
+    local task = CO.Task.New(func,tag)
     if autoStart == true then
         task:Run()
     end
@@ -69,7 +69,7 @@ end
 function CoroutineFactory:CreateEvent(tag,func,autoStart)
     if autoStart == nil then autoStart = true end
     
-    local e = Event.New(tag,func)
+    local e = CO.Event.New(tag,func)
     if autoStart == true then
         e:Run()
     end

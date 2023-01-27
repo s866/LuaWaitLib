@@ -1,6 +1,9 @@
+-- 命名空间
+CO = {}
 require 'COConf'
 require 'Misc'
-Stack = require 'Stack'
+CO.Stack = require 'Stack'
 require 'Task'
 require 'Event'
 require 'WaitWrapper'
+

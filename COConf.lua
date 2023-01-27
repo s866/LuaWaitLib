@@ -1,4 +1,4 @@
-function GetDebugFlag()
+function CO.GetDebugFlag()
     return true
 end
 
@@ -24,7 +24,7 @@ end
 
 
 
-function SafeCall(f,...)
+function CO.SafeCall(f,...)
     local function try2(callf)
         -- try to call it
         local ok, res = xpcall(callf,function (errorMsg)

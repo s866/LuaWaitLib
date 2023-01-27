@@ -1,6 +1,8 @@
 
 ---@class Event
-Event = {}
+local Event = {}
+
+CO.Event = Event
 
 function Event.New(tag,func)
     ---@class Event

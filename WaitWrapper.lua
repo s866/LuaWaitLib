@@ -7,9 +7,11 @@
 
 
 ---@class TimeWaitWrapper : IWaitWrapper
-TimeWaitWrapper = {}
+local TimeWaitWrapper = {}
 TimeWaitWrapper.DEFUALT_WAIT_TIME_SECOND = 1
 TimeWaitWrapper.MAX_WAIT_TIME_SECOND = 20
+
+CO.TimeWaitWrapper = TimeWaitWrapper
 
 function TimeWaitWrapper.New(waitTime)
     ---@type TimeWaitWrapper
@@ -35,7 +37,7 @@ function TimeWaitWrapper:WaitUpdate(deltaTime)
     self.curWaitTime = self.curWaitTime + deltaTime
     if self:IsEnd() then
         for i = 1, #self.timeEndFuncs do
-            SafeCall(self.timeEndFuncs[i])
+            CO.SafeCall(self.timeEndFuncs[i])
         end
         self:HurryUpTask()
         return true
@@ -64,7 +66,10 @@ end
 
 
 ---@class EventsWaitWrapper : IWaitWrapper
-EventsWaitWrapper = {}
+local EventsWaitWrapper = {}
+
+CO.EventsWaitWrapper = EventsWaitWrapper
+
 function EventsWaitWrapper.New(events,eventsWaitOpt,errorProcessData)
     ---@type EventsWaitWrapper
     local o = {}
@@ -145,7 +150,8 @@ end
 
 
 ---@class FrameWaitWrapper : IWaitWrapper
-FrameWaitWrapper = {}
+local FrameWaitWrapper = {}
+CO.FrameWaitWrapper = FrameWaitWrapper
 
 function FrameWaitWrapper.New(count)
     ---@type FrameWaitWrapper
@@ -195,8 +201,10 @@ end
 
 
 ---@class EventsTimeoutWaitWrapper : IWaitWrapper
-EventsTimeoutWaitWrapper = {}
+local EventsTimeoutWaitWrapper = {}
 EventsTimeoutWaitWrapper.DEFAULT_TIMEOUT_SECOND = 10
+
+CO.EventsTimeoutWaitWrapper = EventsTimeoutWaitWrapper
 
 function EventsTimeoutWaitWrapper.New(events,eventsWaitOpt,timeout,timeoutOpt,errorProcessData)
     ---@type EventsTimeoutWaitWrapper
