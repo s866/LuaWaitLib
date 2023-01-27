@@ -373,6 +373,57 @@ function Test:Kill_Tag()
 
 end
 
+---使用原生yield进行执行，成功
+function Test:RawYieldReturn_Success()
+    local isFinish = false
+    self:DoClean()
+    CoroutineFactory:CreateTask('root',function ()
+        local event = CoroutineFactory:CreateEvent('scroll',function ()
+            for i = 1, 5, 1 do
+                print('scroll' .. i)
+                coroutine.yield()
+            end
+            print('scroll end')
+        end)
+        local suc = CO.Wait:WaitEvent(event)
+        assert(suc)
+        assert(CUR_FRAME == 5)
+        isFinish = true
+    end)
+    self:DoUpdate()
+    assert(isFinish)
+end
+
+---使用原生yield进行执行，错误
+function Test:RawYieldReturn_Error()
+    local isFinish = false
+    local errorCall = false
+    self:DoClean()
+    CoroutineFactory:CreateTask('root',function ()
+        local event = CoroutineFactory:CreateEvent('scroll',function ()
+            for i = 1, 5, 1 do
+                print('scroll' .. i)
+                print('deltaTime '.. CoroutineFactory:GetDeltaTime())
+                coroutine.yield()
+            end
+            error('scroll error')
+            print('scroll end')
+        end)
+        local suc = CO.Wait:WaitEvent(event,6,COWaitEnum_TimeoutOpt.Continue,{
+            opt = COWaitEnum_EventErrorOpt.CallCustomFunc,
+            func = function (task)
+                assert(task.tag == 'scroll')
+                errorCall = true
+            end
+        })
+        assert(suc == false)
+        assert(CUR_FRAME == 6)
+        isFinish = true
+    end)
+    self:DoUpdate()
+    assert(isFinish)
+    assert(errorCall == true)
+end
 
 
 
@@ -394,6 +445,9 @@ function Test:All()
     self:Kill_OneNextFrameClean()
     self:Kill_Group()
     self:Kill_Tag()
+
+    self:RawYieldReturn_Success()
+    self:RawYieldReturn_Error()
 end
 
 return Test

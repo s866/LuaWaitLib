@@ -53,8 +53,13 @@ function Task:SetWaitWrapper(wrapperIns)
     
 end
 
+function Task:HasWaitWrapper()
+    return self.waitWrapper ~= nil
+end
+
 function Task:UpdateWaitWrapper(deltaTime)
-    if self.waitWrapper == nil then return end
+    -- 如果不存在waitWrapper，则直接返回已经完成
+    if self.waitWrapper == nil then return true end
 
     return self.waitWrapper:WaitUpdate(deltaTime)
 end

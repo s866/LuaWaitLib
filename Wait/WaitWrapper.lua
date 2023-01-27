@@ -4,6 +4,13 @@
 ---@field BindTask fun(self:IWaitWrapper,task:Task)
 ---@field HurryUpTask fun(self:IWaitWrapper) ;运行正在等待的task
 
+-- **********************************************
+-- 目前最好不要编写类似调用自定义函数的WaitWrapper，
+-- 比如传入一个updateFunc，然后在WaitUpdate里调用这个函数，
+-- 因为WaitUpdate发生错误后，将不会有错误处理的选项进行处理，
+-- 可能会出现一些意料之外的事情
+-- **********************************************
+
 
 
 ---@class TimeWaitWrapper : IWaitWrapper
@@ -268,5 +275,7 @@ end
 function EventsTimeoutWaitWrapper:IsTimeout()
     return self.timeWaitWrapper:IsEnd()
 end
+
+
 
 

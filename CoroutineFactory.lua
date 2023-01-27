@@ -10,6 +10,7 @@ CoroutineFactory = {}
 ---@type Task[]
 CoroutineFactory.Coroutines_NextFrameRun = {}
 CoroutineFactory.CoroutineStack = CO.Stack.New()
+CoroutineFactory.curDeltaTime = 0
 
 CoroutineFactory.debug = CO.GetDebugFlag()
 CoroutineFactory.MAX_WAIT_TIME = 100
@@ -87,8 +88,10 @@ function CoroutineFactory:ResumeCoroutine(task)
     self.CoroutineStack:Push(task)
     local preState = task:GetState()
 	local suc, info = coroutine.resume(task.co)
-    ---Task:Init的wrappedFunc确保了CoroutineReturnInfo类型
-    ---@cast info CoroutineReturnInfo
+    ---CoroutineReturnInfo类型来自 Task:Init的wrappedFunc
+    ---nil类型来自 coroutine.yield()
+    ---@cast info CoroutineReturnInfo|nil
+    
 
     self.CoroutineStack:Pop()
 
@@ -108,6 +111,8 @@ function CoroutineFactory:ResumeCoroutine(task)
     end
 
     if task:GetCoroutineStatus() == "dead" then
+        ---@cast info -nil
+        -- 如果时dead，Task:Init的wrappedFunc确保了不为nil
         task:Kill()
         task:UpdateState(info.IsSuccess)
         return
@@ -115,7 +120,7 @@ function CoroutineFactory:ResumeCoroutine(task)
     -- 必须在所有resume执行后的后续处理操作完成后，才能进行update，不然有的状态没有及时更新，比如isPenddingKill
     task:UpdateState()
 
-    if info.waitWrapperIns ~= nil then
+    if info ~= nil and info.waitWrapperIns ~= nil then
         task:SetWaitWrapper(info.waitWrapperIns)
     end
 
@@ -124,21 +129,38 @@ end
 
 
 function CoroutineFactory:Update(deltaTime)
+    self:SetDeltaTime(deltaTime)
+    
     local temp = self.Coroutines_NextFrameRun
     self.Coroutines_NextFrameRun = {}
     for i = 1, #temp do
         local task = temp[i]
         if not task.isPenddingKill then
-            if not task:UpdateWaitWrapper(deltaTime) then
-                -- 如果未等到结束就加回去等下一帧遍历
-                self:AddCoroutineData(task)
+            if task:HasWaitWrapper() then
+                -- 存在则调用更新
+                if not task:UpdateWaitWrapper(deltaTime) then
+                    -- 如果未等到结束就加回去等下一帧遍历
+                    self:AddCoroutineData(task)
+                end
+            else
+                -- 不存在则每帧调用run
+                task:Run()
             end
+            
         else
             -- penddingKill不进行回加则代表删除了
             
         end
     end
     
+end
+
+function CoroutineFactory:SetDeltaTime(t)
+    self.curDeltaTime = t
+end
+
+function CoroutineFactory:GetDeltaTime()
+    return self.curDeltaTime
 end
 
 ---杀死同一tag的协程
