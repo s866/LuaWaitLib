@@ -14,16 +14,13 @@ function Test_AsyncDo:DoUpdate()
     CoroutineFactory:Clean()
 end
 
-function Test_AsyncDo:ScrollNumber()
+function Test_AsyncDo:ScrollNumber_Normal()
     local isFinish = false
     self:DoClean()
     local nums = {}
     local okNums = {0,25,50,75,100}
     CoroutineFactory:CreateTask('Root',function ()
-        -- 刚启动第一帧没有deltaTime，所以需要跳过
-        CO.Wait:WaitFrameCount(1)
-        
-        local e = CO.AsyncDo:ScrollNumber(0,100,4,function (curValue)
+        local e = CO.AsyncDo:ScrollNumber('ScrollNumber',0,100,4,function (curValue)
             table.insert(nums,curValue)
         end)
         local suc = CO.Wait:WaitEvent(e)
@@ -32,6 +29,7 @@ function Test_AsyncDo:ScrollNumber()
             print(nums[i])
             assert(nums[i] == okNums[i])
         end
+        assert(CUR_FRAME == 5)
         isFinish = true
     end)
 
@@ -39,8 +37,33 @@ function Test_AsyncDo:ScrollNumber()
     assert(isFinish)
 end
 
+function Test_AsyncDo:ScrollNumber_HurryUp()
+    local isFinish = false
+    self:DoClean()
+    local nums = {}
+    local okNums = {0,25,100}
+    CoroutineFactory:CreateTask('Root',function ()
+        local e = CO.AsyncDo:ScrollNumber('ScrollNumber',0,100,4,function (curValue)
+            table.insert(nums,curValue)
+        end)
+        CO.Wait:WaitFrameCount(2)
+        e:HurryUp()
+        for i = 1, #nums do
+            print(nums[i])
+            assert(nums[i] == okNums[i])
+        end
+        assert(CUR_FRAME == 2)
+        isFinish = true
+    end)
+
+    self:DoUpdate()
+    assert(isFinish)
+end
+
+
 function Test_AsyncDo:All()
-    self:ScrollNumber()
+    self:ScrollNumber_Normal()
+    self:ScrollNumber_HurryUp()
 end
 
 

@@ -214,6 +214,7 @@ function Test:WaitAllEvents_Error_DoNothing()
         end)
         local suc = CO.Wait:WaitAllEvents({e1},5,COWaitEnum_TimeoutOpt.Continue,{opt = COWaitEnum_EventErrorOpt.DoNothing})
         assert(e1:GetState() == TaskEnum_StateType.Error)
+        assert(e1:IsKilled())
         assert(suc == false)
         assert(CUR_FRAME == 5)
         print('wait end')
@@ -236,6 +237,7 @@ function Test:WaitAllEvents_Error_ErrorAsSuccess()
         end)
         local suc = CO.Wait:WaitAllEvents({e1},5,COWaitEnum_TimeoutOpt.Continue,{opt = COWaitEnum_EventErrorOpt.ErrorAsSuccess})
         assert(e1:GetState() == TaskEnum_StateType.Error)
+        assert(e1:IsKilled())
         assert(suc == true)
         assert(CUR_FRAME == 1)
         print('wait end')
@@ -264,6 +266,7 @@ function Test:WaitAllEvents_Error_CallCustomFunc()
             end
         })
         assert(e1:GetState() == TaskEnum_StateType.Error)
+        assert(e1:IsKilled())
         assert(suc == false)
         assert(called == true)
         assert(CUR_FRAME == 5)
@@ -276,6 +279,131 @@ function Test:WaitAllEvents_Error_CallCustomFunc()
 end
 
 
+function Test:CustomWait_CustomFuncError1()
+    local isFinish = false
+    local called = false
+    self:DoClean()
+    CoroutineFactory:CreateTask('CustomWait_CustomFuncError1',function ()
+        assert(CUR_FRAME == 0)
+        local e1 = CoroutineFactory:CreateEvent('Func',function ()
+            local t = 0
+            CO.Wait:CustomWait(function (deltaTime)
+                if t == 0 then
+                    t = 1
+                    error('CustomWait_CustomFuncError1 e1 error')
+                    return false
+                else
+                    return true
+                end
+            end,function ()
+                -- 结束运行后数字要设置为目标值
+                assert(false)
+            end)
+        end)
+        local suc = CO.Wait:WaitAllEvents({e1},5,COWaitEnum_TimeoutOpt.Continue,{
+            opt = COWaitEnum_EventErrorOpt.CallCustomFunc,
+            func = function (task)
+                assert(task.tag == 'Func')
+                called = true
+            end
+        })
+        assert(e1:GetState() == TaskEnum_StateType.Error)
+        assert(e1:IsKilled())
+        assert(suc == false)
+        assert(called == true)
+        assert(CUR_FRAME == 5)
+        print('wait end')
+        isFinish = true
+    end)
+
+    self:DoUpdate()
+    assert(isFinish)
+end
+
+function Test:CustomWait_CustomFuncError2()
+    local isFinish = false
+    local called = false
+    self:DoClean()
+    CoroutineFactory:CreateTask('CustomWait_CustomFuncError2',function ()
+        assert(CUR_FRAME == 0)
+        local e1 = CoroutineFactory:CreateEvent('Func',function ()
+            local t = 0
+            CO.Wait:CustomWait(function (deltaTime)
+                if t == 0 then
+                    t = 1
+                    return false
+                else
+                    error('CustomWait_CustomFuncError2 e1 error')
+                end
+            end,function ()
+                -- 结束运行后数字要设置为目标值
+                assert(false)
+            end)
+        end)
+        local suc = CO.Wait:WaitAllEvents({e1},5,COWaitEnum_TimeoutOpt.Continue,{
+            opt = COWaitEnum_EventErrorOpt.CallCustomFunc,
+            func = function (task)
+                assert(task.tag == 'Func')
+                called = true
+            end
+        })
+        assert(e1:GetState() == TaskEnum_StateType.Error)
+        assert(e1:IsKilled())
+        assert(suc == false)
+        assert(called == true)
+        assert(CUR_FRAME == 5)
+        print('wait end')
+        isFinish = true
+    end)
+
+    self:DoUpdate()
+    assert(isFinish)
+end
+
+function Test:CustomWait_HurryUpDoFuncError()
+    local isFinish = false
+    local called = false
+    local c1,c2 = nil,nil
+    self:DoClean()
+    CoroutineFactory:CreateTask('CustomWait_HurryUpDoFuncError',function ()
+        assert(CUR_FRAME == 0)
+        local e1 = CoroutineFactory:CreateEvent('Func',function ()
+            local t = 0
+            CO.Wait:CustomWait(function (deltaTime)
+                if t == 0 then
+                    t = 1
+                    c1 = true
+                    return false
+                else
+                    c2 = true
+                    return true
+                end
+            end,function ()
+                -- 结束运行后数字要设置为目标值
+                error('CustomWait_HurryUpDoFuncError e1 error')
+                assert(false)
+            end)
+        end)
+        local suc = CO.Wait:WaitAllEvents({e1},5,COWaitEnum_TimeoutOpt.Continue,{
+            opt = COWaitEnum_EventErrorOpt.CallCustomFunc,
+            func = function (task)
+                assert(task.tag == 'Func')
+                called = true
+            end
+        })
+        assert(c1 == c2 == true)
+        assert(e1:GetState() == TaskEnum_StateType.Error)
+        assert(e1:IsKilled())
+        assert(suc == false)
+        assert(called == true)
+        assert(CUR_FRAME == 5)
+        print('wait end')
+        isFinish = true
+    end)
+
+    self:DoUpdate()
+    assert(isFinish)
+end
 
 
 
@@ -440,7 +568,10 @@ function Test:All()
     self:WaitAllEvents_Error_ErrorAsSuccess()
     self:WaitAllEvents_Error_CallCustomFunc()
 
-
+    self:CustomWait_CustomFuncError1()
+    self:CustomWait_CustomFuncError2()
+    self:CustomWait_HurryUpDoFuncError()
+    
     self:WaitFrameCount()
     self:Kill_OneNextFrameClean()
     self:Kill_Group()

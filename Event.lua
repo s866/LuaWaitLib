@@ -21,6 +21,11 @@ function Event:Run()
     self.runTask:Run()
 end
 
+function Event:HurryUp()
+    self.runTask:HurryUp()
+end
+
+
 function Event:AddSuccessListener(func)
     self.runTask:AddSuccessListener(func)
 end
@@ -40,7 +45,7 @@ function Event:Kill()
 end
 
 function Event:IsKilled()
-    return self.runTask.isPenddingKill
+    return self.runTask:IsKilled()
 end
 
 function Event:GetState()

@@ -131,11 +131,12 @@ end
 function CoroutineFactory:Update(deltaTime)
     self:SetDeltaTime(deltaTime)
     
+    
     local temp = self.Coroutines_NextFrameRun
     self.Coroutines_NextFrameRun = {}
     for i = 1, #temp do
         local task = temp[i]
-        if not task.isPenddingKill then
+        if not task:IsKilled() then
             if task:HasWaitWrapper() then
                 -- 存在则调用更新
                 if not task:UpdateWaitWrapper(deltaTime) then
@@ -148,7 +149,7 @@ function CoroutineFactory:Update(deltaTime)
             end
             
         else
-            -- penddingKill不进行回加则代表删除了
+            -- 无效的则不进行回加，代表删除了
             
         end
     end
@@ -172,6 +173,23 @@ function CoroutineFactory:KillByTag(tag)
         local task = self.Coroutines_NextFrameRun[i]
         if task.tag == tag then
             task:Kill()
+        end
+    end
+end
+
+---（如果task不存在WaitWrapper，这个函数将会跳过它）让所有wait中的协程继续运行  
+---例如：  
+---正在滚动数字，如果再点击一下跳过滚动数字，则调用HurryUpByTags  
+---然后滚动数字的CustomWaitWrapper则会调用HurryUp方法直接结束
+---@param hurryUpTags string[]
+function CoroutineFactory:HurryUpByTags(hurryUpTags)
+    for i = 1, #self.Coroutines_NextFrameRun do
+        local task = self.Coroutines_NextFrameRun[i]
+        for j = 1, #hurryUpTags do
+            if task == hurryUpTags[j] then
+                task:HurryUp()
+                break
+            end
         end
     end
 end

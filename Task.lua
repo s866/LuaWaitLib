@@ -24,9 +24,13 @@ end
 function Task:Init(func,tag)
     local wrappedFunc = function (...)
         local res,suc = CO.SafeCall(func,...)
+        if not suc then
+            COLogError('*** %s Coroutine Function Body ERROR ***',self:ToString())
+        end
         if res == nil then
             res = {}
         end
+        
         ---@cast res CoroutineReturnInfo
         res.IsSuccess = suc        
         return res
@@ -34,13 +38,20 @@ function Task:Init(func,tag)
     local co = CoroutineFactory:CreateCoroutine(wrappedFunc)
     self.co = co
     self.tag = tag
+    
+    ---@private
     self.state = TaskEnum_StateType.Idle
+    ---@private
     self.isPenddingKill = false
+    
     ---@type Task[]
     self.children = {}
     ---@type Task
     self.parent = nil
+
+    ---@private
     self.successListeners = {}
+    ---@private
     self.errorListeners = {}
     return self
 end
@@ -57,17 +68,37 @@ function Task:HasWaitWrapper()
     return self.waitWrapper ~= nil
 end
 
+function Task:HurryUp()
+    if self:HasWaitWrapper() then
+        local _,suc = CO.SafeCall(self.waitWrapper.HurryUpTask,self.waitWrapper)
+        if not suc then
+            COLogError('*** %s HurryUp ERROR ***',self:ToString())
+            self:Kill()
+            self:Fail()
+        end
+    end
+end
+
+
 function Task:UpdateWaitWrapper(deltaTime)
     -- 如果不存在waitWrapper，则直接返回已经完成
     if self.waitWrapper == nil then return true end
 
-    return self.waitWrapper:WaitUpdate(deltaTime)
+    local isFinish,suc = CO.SafeCall(self.waitWrapper.WaitUpdate,self.waitWrapper,deltaTime)
+    if not suc then
+        isFinish = true
+        COLogError('*** %s UpdateWaitWrapper ERROR ***',self:ToString())
+        -- update出现错误了，这里需要进行清理
+        self:Kill()
+        -- 因为协程函数并没有失败，只是waitwrapper失败了，所以不能通过协程状态来判断，需要直接设置fail
+        self:Fail()
+    end
+    return isFinish
 end
 
 
 function Task:Run()
     -- 这里还不是真正的运行，需要在coroutinue.resume之后才算，所以在UpdateState里更新
-    -- self:SetState(TaskEnum_StateType.Running)
 
     ---@diagnostic disable-next-line
     CoroutineFactory:ResumeCoroutine(self)
@@ -124,8 +155,28 @@ function Task:Kill()
     
 end
 
+function Task:IsValid()
+    if self:IsKilled() then
+        return false
+    end
+    
+    -- 检查parent是否有效
+    local child = self
+    local parent = nil
+    repeat
+        child = self
+        parent = child.parent
+        if parent ~= nil and parent:IsKilled() then
+            return false
+        end        
+    until parent == nil
 
+    return true
+end
 
+function Task:IsKilled()
+    return self.isPenddingKill
+end
 
 
 function Task:GetState()

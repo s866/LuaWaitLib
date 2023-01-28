@@ -1,15 +1,61 @@
 
 ---@class IWaitWrapper
 ---@field WaitUpdate fun(self:IWaitWrapper,deltaTime:number):boolean ;返回是否结束，true为结束
----@field BindTask fun(self:IWaitWrapper,task:Task)
+---@field BindTask fun(self:IWaitWrapper,task:Task) ;这里的task默认为wait调用所在的task，自动赋值
 ---@field HurryUpTask fun(self:IWaitWrapper) ;运行正在等待的task
 
--- **********************************************
--- 目前最好不要编写类似调用自定义函数的WaitWrapper，
--- 比如传入一个updateFunc，然后在WaitUpdate里调用这个函数，
--- 因为WaitUpdate发生错误后，将不会有错误处理的选项进行处理，
--- 可能会出现一些意料之外的事情
--- **********************************************
+
+-- ***************************************
+-- 编写注意：
+-- 每一个waitwrapper都需要负责调用hurryup来继续等待中的event的运行
+-- 否则event将会一直等待，update返回true并不会自动调用hurryup！！！
+-- ***************************************
+
+
+
+---@class CustomWaitWrapper : IWaitWrapper
+local CustomWaitWrapper = {}
+
+CO.CustomWaitWrapper = CustomWaitWrapper
+
+function CustomWaitWrapper.New(customFunc,hurryUpDoFunc)
+    ---@type CustomWaitWrapper
+    local o = {}
+
+    setmetatable(o,{__index = CustomWaitWrapper})
+    o:Init(customFunc,hurryUpDoFunc)
+    return o
+end
+
+function CustomWaitWrapper:Init(customFunc,hurryUpDoFunc)
+    self.customFunc = customFunc
+    self.hurryUpDoFunc = hurryUpDoFunc
+
+    ---@type Task
+    self.task = nil
+end
+
+
+function CustomWaitWrapper:WaitUpdate(deltaTime)
+    if self.customFunc(deltaTime) == true then
+        self:HurryUpTask()
+    end
+    return false
+end
+
+---@param task Task
+function CustomWaitWrapper:BindTask(task)
+    self.task = task
+end
+
+function CustomWaitWrapper:HurryUpTask()
+    self.hurryUpDoFunc()
+
+    self.task:Run()
+end
+
+
+
 
 
 
@@ -35,8 +81,8 @@ function TimeWaitWrapper:Init(waitTime)
     self.waitTime = math.min(waitTime,self.MAX_WAIT_TIME_SECOND)
     self.curWaitTime = 0
     self.timeEndFuncs = {}
-    ---@type table<Task,boolean>
-    self.tasks = {}
+    ---@type Task
+    self.task = nil
 end
 
 
@@ -62,13 +108,11 @@ end
 
 ---@param task Task
 function TimeWaitWrapper:BindTask(task)
-    self.tasks[task] = true
+    self.task = task
 end
 
 function TimeWaitWrapper:HurryUpTask()
-    for task, value in pairs(self.tasks) do
-        task:Run()
-    end
+    self.task:Run()
 end
 
 
@@ -114,8 +158,8 @@ function EventsWaitWrapper:Init(events,eventsWaitOpt,errorProcessData)
     end
 
 
-    ---@type table<Task,boolean>
-    self.tasks = {}
+    ---@type Task
+    self.task = nil
 end
 
 function EventsWaitWrapper:WaitUpdate(deltaTime)
@@ -125,7 +169,7 @@ end
 
 ---@param task Task
 function EventsWaitWrapper:BindTask(task)
-    self.tasks[task] = true
+    self.task = task
     
     for i = 1, #self.events do
         -- 加完必须删除！！！
@@ -139,9 +183,7 @@ function EventsWaitWrapper:BindTask(task)
 end
 
 function EventsWaitWrapper:HurryUpTask()
-    for task, value in pairs(self.tasks) do
-        task:Run()
-    end
+    self.task:Run()
 end
 
 function EventsWaitWrapper:CleanEventSuccessListener()
@@ -172,8 +214,8 @@ end
 function FrameWaitWrapper:Init(count)
     self.count = count
     self.curCount = 0
-    ---@type table<Task,boolean>
-    self.tasks = {}
+    ---@type Task
+    self.task = nil
 end
 
 function FrameWaitWrapper:WaitUpdate(deltaTime)
@@ -186,14 +228,12 @@ function FrameWaitWrapper:WaitUpdate(deltaTime)
 end
 
 function FrameWaitWrapper:BindTask(task)
-    self.tasks[task] = true
+    self.task = task
 
 end
 
 function FrameWaitWrapper:HurryUpTask()
-    for task, value in pairs(self.tasks) do
-        task:Run()
-    end
+    self.task:Run()
 end
 
 function FrameWaitWrapper:IsEnd()

@@ -105,3 +105,16 @@ function Wait:WaitFrameCount(count)
     coroutine.yield(retData)
 
 end
+
+---自定义等待
+---@param customFunc fun(deltaTime:number):boolean 每帧执行的等待函数，返回是否结束
+---@param hurryUpDoFunc ?fun() 等待运行结束后执行的函数
+function Wait:CustomWait(customFunc,hurryUpDoFunc)
+    if customFunc == nil then return end
+
+    local wrapper = CO.CustomWaitWrapper.New(customFunc,hurryUpDoFunc)
+    ---@type CoroutineReturnInfo
+    local retData = {waitWrapperIns = wrapper}
+    coroutine.yield(retData)
+
+end
