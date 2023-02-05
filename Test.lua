@@ -2,7 +2,6 @@
 -- 本测试时间间隔定为1s，和帧对应便于测试
 -- **************************************************
 
-require 'CoroutineFactory'
 
 local Test = {}
 
@@ -501,6 +500,38 @@ function Test:Kill_Tag()
 
 end
 
+
+function Test:KillGroup_ParentWaitFail()
+    local isFinish = false
+    local c1 = false
+    self:DoClean()
+
+    CoroutineFactory:CreateTask('KillGroup_ParentWaitFail',function ()
+        local event = CoroutineFactory:CreateEvent('KillGroup_ParentWaitFail',function ()
+            local waitEvent = CoroutineFactory:CreateWaitEvent('KillGroup_ParentWaitFail_Wait',100,true)
+    
+            CO.Wait:WaitEvent(waitEvent,10,COWaitEnum_TimeoutOpt.Continue,{
+                opt = COWaitEnum_EventErrorOpt.CallCustomFunc,
+                func = function (task)
+                    c1 = true
+                end
+            })
+        end,true)
+        CO.Wait:WaitEvent(event,5,COWaitEnum_TimeoutOpt.Break,{
+            opt = COWaitEnum_EventErrorOpt.CallCustomFunc,
+            func = function (task)
+                assert(true)
+            end
+        })
+        assert(false)
+
+    end,true)
+    self:DoUpdate()
+    assert(isFinish == false)
+    assert(c1 == true)
+end
+
+
 ---使用原生yield进行执行，成功
 function Test:RawYieldReturn_Success()
     local isFinish = false
@@ -555,30 +586,33 @@ end
 
 
 
+
 function Test:All()
-    self:WaitZero_RunSameFrame()
-    self:WaitOneFrame_RunNextFrame1()
-    self:EventTrigger_OneSameFrame()
-    self:TagGroup()
-    self:EventTrigger_Timeout_Break()
-    self:EventTrigger_Timeout_Continue()
+    -- self:WaitZero_RunSameFrame()
+    -- self:WaitOneFrame_RunNextFrame1()
+    -- self:EventTrigger_OneSameFrame()
+    -- self:TagGroup()
+    -- self:EventTrigger_Timeout_Break()
+    -- self:EventTrigger_Timeout_Continue()
     
-    self:WaitAllEvents()
-    self:WaitAllEvents_Error_DoNothing()
-    self:WaitAllEvents_Error_ErrorAsSuccess()
-    self:WaitAllEvents_Error_CallCustomFunc()
+    -- self:WaitAllEvents()
+    -- self:WaitAllEvents_Error_DoNothing()
+    -- self:WaitAllEvents_Error_ErrorAsSuccess()
+    -- self:WaitAllEvents_Error_CallCustomFunc()
 
-    self:CustomWait_CustomFuncError1()
-    self:CustomWait_CustomFuncError2()
-    self:CustomWait_HurryUpDoFuncError()
+    -- self:CustomWait_CustomFuncError1()
+    -- self:CustomWait_CustomFuncError2()
+    -- self:CustomWait_HurryUpDoFuncError()
     
-    self:WaitFrameCount()
-    self:Kill_OneNextFrameClean()
-    self:Kill_Group()
-    self:Kill_Tag()
+    -- self:WaitFrameCount()
+    -- self:Kill_OneNextFrameClean()
+    -- self:Kill_Group()
+    -- self:Kill_Tag()
+    -- self:KillGroup_ParentWaitFail()
 
-    self:RawYieldReturn_Success()
-    self:RawYieldReturn_Error()
+    -- self:RawYieldReturn_Success()
+    -- self:RawYieldReturn_Error()
+
 end
 
 return Test

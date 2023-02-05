@@ -49,7 +49,10 @@ function CustomWaitWrapper:BindTask(task)
 end
 
 function CustomWaitWrapper:HurryUpTask()
-    self.hurryUpDoFunc()
+    if self.hurryUpDoFunc ~= nil then
+        -- 这里出现异常要抛出去不能捕获
+        self.hurryUpDoFunc()
+    end
 
     self.task:Run()
 end
@@ -62,7 +65,7 @@ end
 ---@class TimeWaitWrapper : IWaitWrapper
 local TimeWaitWrapper = {}
 TimeWaitWrapper.DEFUALT_WAIT_TIME_SECOND = 1
-TimeWaitWrapper.MAX_WAIT_TIME_SECOND = 20
+TimeWaitWrapper.MAX_WAIT_TIME_SECOND = 20000
 
 CO.TimeWaitWrapper = TimeWaitWrapper
 
@@ -112,6 +115,7 @@ function TimeWaitWrapper:BindTask(task)
 end
 
 function TimeWaitWrapper:HurryUpTask()
+    if self.task == nil then return end
     self.task:Run()
 end
 
@@ -274,6 +278,7 @@ function EventsTimeoutWaitWrapper:Init(events,eventsWaitOpt,timeout,timeoutOpt,e
     if timeoutOpt == nil then timeoutOpt = COWaitEnum_TimeoutOpt.Break end
     self.timeoutOpt = timeoutOpt
 
+    self.task = nil
 
     self.timeWaitWrapper = TimeWaitWrapper.New(timeout)
     self.timeWaitWrapper:AddTimeEndFunc(function ()
@@ -282,6 +287,7 @@ function EventsTimeoutWaitWrapper:Init(events,eventsWaitOpt,timeout,timeoutOpt,e
         for i = 1, #self.eventsWaitWrapper.events do
             COLogError(self.eventsWaitWrapper.events[i]:ToString())    
         end
+        COLogError('timeout opt %d ,time %d',self.timeoutOpt,self.timeWaitWrapper.waitTime)
         COLogError('************************************')
     end)
     
@@ -291,12 +297,20 @@ function EventsTimeoutWaitWrapper:WaitUpdate(deltaTime)
     if self.eventsWaitWrapper:WaitUpdate(deltaTime) == true then
         return true
     end
-
-    return self.timeWaitWrapper:WaitUpdate(deltaTime)
+    local isTimeout = self.timeWaitWrapper:WaitUpdate(deltaTime)
+    if isTimeout then
+        self.eventsWaitWrapper:CleanEventSuccessListener()
+        if self.timeoutOpt == COWaitEnum_TimeoutOpt.Break then
+            -- 中断的情况超时需要Kill掉，不然等待的event还在运行，导致等待的event完成后使得中断的协程resume
+            self.task:Kill()
+        end
+    end
+    return isTimeout
 end
 
 ---@param task Task
 function EventsTimeoutWaitWrapper:BindTask(task)
+    self.task = task
     self.eventsWaitWrapper:BindTask(task)
     -- 超时处理
     if self.timeoutOpt == COWaitEnum_TimeoutOpt.Break then

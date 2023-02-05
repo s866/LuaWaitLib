@@ -44,6 +44,10 @@ function Event:Kill()
     self.runTask:Kill()
 end
 
+function Event:Block()
+    CO.Wait:WaitEvent(self,10000)
+end
+
 function Event:IsKilled()
     return self.runTask:IsKilled()
 end

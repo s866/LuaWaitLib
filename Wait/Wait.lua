@@ -32,11 +32,17 @@ function Wait:Wait(timeSecond)
     if timeSecond == nil then return end
     if timeSecond == 0 then return end
 
-    ---@type CoroutineReturnInfo
-    local retData = {waitWrapperIns = CO.TimeWaitWrapper.New(timeSecond)}
+    local retData = self:CreateWaitCoroutineReturnInfo(timeSecond)
+
     coroutine.yield(retData)
 
 end
+
+function Wait:CreateWaitCoroutineReturnInfo(timeSecond)
+    local retData = {waitWrapperIns = CO.TimeWaitWrapper.New(timeSecond)}
+    return retData
+end
+
 
 ---@param event Event
 ---@param timeout ?number 超时时间
@@ -75,16 +81,28 @@ function Wait:WaitEvents_Internal(events,eventWaitOpt,timeout,timeoutOpt,errorPr
         errorProcessData = {opt = COWaitEnum_EventErrorOpt.DoNothing}
     end
     
-
-    local allEnd = true
-    for i = 1, #events do
-        if not events[i]:IsEnd() then
-            allEnd = false
-            break
+    if eventWaitOpt == COWaitEnum_WaitTaskOpt.WaitAll then
+        local allEnd = true
+        for i = 1, #events do
+            if not events[i]:IsEnd() then
+                allEnd = false
+                break
+            end
         end
+        
+        if allEnd then return true end
+    elseif eventWaitOpt == COWaitEnum_WaitTaskOpt.WaitAny then
+        local anyEnd = false
+        for i = 1, #events do
+            if events[i]:IsEnd() then
+                anyEnd = true
+                break
+            end
+        end
+        if anyEnd then return true end
     end
     
-    if allEnd then return true end
+    
 
     local eventWrapper = CO.EventsTimeoutWaitWrapper.New(events,eventWaitOpt,timeout,timeoutOpt,errorProcessData)
     ---@type CoroutineReturnInfo
@@ -117,4 +135,11 @@ function Wait:CustomWait(customFunc,hurryUpDoFunc)
     local retData = {waitWrapperIns = wrapper}
     coroutine.yield(retData)
 
+end
+
+
+function Wait:WaitRule(ruleFunc)
+    self:CustomWait(function (deltaTime)
+        return ruleFunc()
+    end)
 end

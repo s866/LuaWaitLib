@@ -1,4 +1,3 @@
-require 'Lib'
 
 ---@class CoroutineReturnInfo
 ---@field IsSuccess boolean
@@ -77,6 +76,11 @@ function CoroutineFactory:CreateEvent(tag,func,autoStart)
     return e
 end
 
+function CoroutineFactory:CreateWaitEvent(tag,timeSecond,autoStart)
+    return self:CreateEvent(tag,function ()
+        CO.Wait:Wait(timeSecond)
+    end,autoStart)
+end
 
 
 
@@ -113,7 +117,7 @@ function CoroutineFactory:ResumeCoroutine(task)
     if task:GetCoroutineStatus() == "dead" then
         ---@cast info -nil
         -- 如果时dead，Task:Init的wrappedFunc确保了不为nil
-        task:Kill()
+        task:Kill_Pure()
         task:UpdateState(info.IsSuccess)
         return
     end
@@ -176,6 +180,14 @@ function CoroutineFactory:KillByTag(tag)
         end
     end
 end
+
+---@param events Event[]
+function CoroutineFactory:KillEvents(events)
+    for i = 1, #events do
+        events[i]:Kill()
+    end
+end
+
 
 ---（如果task不存在WaitWrapper，这个函数将会跳过它）让所有wait中的协程继续运行  
 ---例如：  
