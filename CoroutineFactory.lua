@@ -54,42 +54,28 @@ function CoroutineFactory:CreateTask(tag,func,autoStart,isRoot)
     autoStart = SetDefault(autoStart,true)
     isRoot = SetDefault(isRoot,true)
 
-    
-
     local task = CO.Task.New(func,tag)
-    local belongTree
-    if isRoot then
-        belongTree = CO.CoTree.New(task)
-    else
-        belongTree = self:GetOrCreateCurTree(task)
-    end
-    task:MoveToTree(belongTree)
-
+    task:__SetIdleData({isRoot = isRoot})
+    
     if autoStart == true then
         task:Run()
     end
     return task
 end
 
----创建一个事件，事件可以被等待
+---创建一个事件，事件可以被等待，如果事件想为根节点，需要设置isRoot=true，   
+---否则将会成为孤儿节点，在resume里挂靠最近执行的task所在的树
 ---@param tag string 标签
 ---@param func async function 事件执行的函数
 ---@param autoStart ?boolean （默认true）自动启动
----@param isRoot ?boolean （默认true）是否为Root节点
+---@param isRoot ?boolean （默认false）是否为Root节点
 ---@return Event
 function CoroutineFactory:CreateEvent(tag,func,autoStart,isRoot)
     autoStart = SetDefault(autoStart,true)
     isRoot = SetDefault(isRoot,false)
     
-    local e = CO.Event.New(tag,func,isRoot)
-
-    local belongTree
-    if isRoot then
-        belongTree = CO.CoTree.New(e)
-    else
-        belongTree = self:GetOrCreateCurTree(e)
-    end
-    e.runTask:MoveToTree(belongTree)
+    local e = CO.Event.New(tag,func)
+    e.runTask:__SetIdleData({isRoot = isRoot})
 
     if autoStart == true then
         e:Run()
@@ -110,7 +96,6 @@ end
 
 
 
-
 ---@private
 ---@param task Task
 function CoroutineFactory:ResumeCoroutine(task)
@@ -120,13 +105,34 @@ function CoroutineFactory:ResumeCoroutine(task)
 
     -- 如果是第一次启动，需要添加到树状结构管理里
     if task:GetState() == TaskEnum_StateType.Idle then
-        if lastResumeTask ~= nil 
-            and lastResumeTask.belongTree == task.belongTree
-            and not lastResumeTask:IsOrphan() 
-            and not task:IsOrphan() 
-        then
-            lastResumeTask:AddChild(task)
+        if task:IsRoot() and task.belongTree == nil then
+            -- 这里处理未分配树的根节点
+
+            local belongTree = CO.CoTree.New(task)
+            task:MoveToTree(belongTree)
+        elseif not task:IsRoot() and task.belongTree == nil then
+            -- 这里处理未分配树的非根节点
+            
+            if lastResumeTask == nil then
+                COLogError('=========================================')
+                COLogError('警告！！存在孤儿任务，将创建孤儿树进行执行，孤儿任务 tag = %s',task.tag)
+                COLogError('警告！！存在孤儿任务，将创建孤儿树进行执行，孤儿任务 tag = %s',task.tag)
+                COLogError('警告！！存在孤儿任务，将创建孤儿树进行执行，孤儿任务 tag = %s',task.tag)
+                COLogError('=========================================')
+                local belongTree = CO.CoTree.New(task)
+                task:MoveToTree(belongTree)
+    
+            else
+                task:MoveToTree(lastResumeTask.belongTree)
+                lastResumeTask:AddChild(task)
+            end
+        elseif task:IsRoot() and task.belongTree ~= nil then
+            -- 已处理的根节点，无需操作
+        elseif not task:IsRoot() and task.belongTree ~= nil then
+            -- 已处理的非根节点，无需操作
         end
+
+
     end
     self:PushCoStack(task)
     local suc, info = coroutine.resume(task.co)
@@ -206,14 +212,6 @@ function CoroutineFactory:GetCurTree()
     else
         return curTask.belongTree
     end
-end
-
-function CoroutineFactory:GetOrCreateCurTree(root)
-    local curTree = self:GetCurTree()
-    if curTree == nil then
-        curTree = CO.CoTree.New(root)
-    end
-    return curTree
 end
 
 ---杀死同一tag的协程
@@ -313,6 +311,7 @@ function CoroutineFactory:GetTopTask()
     -- 确保有效性
     while task:IsKilled() do
         self.coStack:Pop()
+        ---@type Task
         task = self.coStack:Peek()
     end
     return task

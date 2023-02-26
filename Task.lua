@@ -7,6 +7,9 @@ TaskEnum_StateType = {
 
 }
 
+---@class TaskIdleData
+---@field isRoot boolean
+
 ---@class Task
 local Task = {}
 
@@ -205,9 +208,23 @@ function Task:IsKilled()
     return self.isPenddingKill
 end
 
+---TODO 类似rust的枚举携带的数据，lua没有先这样写了
+---@param data TaskIdleData
+function Task:__SetIdleData(data)
+    self.__IdleData = data
+end
 
+---TODO 类似rust的枚举携带的数据，lua没有先这样写了
+function Task:__GetIdleData()
+    return self.__IdleData
+end
 
 function Task:IsRoot()
+    ---TODO 类似rust的枚举携带的数据，lua没有先这样写了
+    if self.state == TaskEnum_StateType.Idle then
+        return self.__IdleData.isRoot
+    end
+
     return self.belongTree.root == self
 end
 
