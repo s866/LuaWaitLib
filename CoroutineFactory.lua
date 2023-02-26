@@ -8,7 +8,7 @@
 CoroutineFactory = {}
 ---@type Task[]
 CoroutineFactory.Coroutines_NextFrameRun = {}
-CoroutineFactory.CoroutineStack = CO.Stack.New()
+CoroutineFactory.curTree = nil
 CoroutineFactory.curDeltaTime = 0
 
 CoroutineFactory.debug = CO.GetDebugFlag()
@@ -32,7 +32,7 @@ end
 
 function CoroutineFactory:Clean()
     self.Coroutines_NextFrameRun = {}
-    self.CoroutineStack = CO.Stack.New()
+    self.curTree = nil
     
 end
 
@@ -53,10 +53,20 @@ end
 ---@param isRoot ?boolean （默认true）是否为Root节点
 ---@return Task
 function CoroutineFactory:CreateTask(tag,func,autoStart,isRoot)
-    if autoStart == nil then autoStart = true end
-    if isRoot == nil then isRoot = true end
+    autoStart = SetDefault(autoStart,true)
+    isRoot = SetDefault(isRoot,true)
 
-    local task = CO.Task.New(func,tag,isRoot)
+    
+
+    local task = CO.Task.New(func,tag)
+    local belongTree
+    if isRoot then
+        belongTree = CO.CoTree.New(task)
+    else
+        belongTree = self:GetOrCreateCurTree(task)
+    end
+    task:MoveToTree(belongTree)
+
     if autoStart == true then
         task:Run()
     end
@@ -70,10 +80,19 @@ end
 ---@param isRoot ?boolean （默认true）是否为Root节点
 ---@return Event
 function CoroutineFactory:CreateEvent(tag,func,autoStart,isRoot)
-    if autoStart == nil then autoStart = true end
-    if isRoot == nil then isRoot = true end
+    autoStart = SetDefault(autoStart,true)
+    isRoot = SetDefault(isRoot,false)
     
     local e = CO.Event.New(tag,func,isRoot)
+
+    local belongTree
+    if isRoot then
+        belongTree = CO.CoTree.New(e)
+    else
+        belongTree = self:GetOrCreateCurTree(e)
+    end
+    e.runTask:MoveToTree(belongTree)
+
     if autoStart == true then
         e:Run()
     end
@@ -99,15 +118,24 @@ end
 function CoroutineFactory:ResumeCoroutine(task)
     if task == nil then return end
     
-    self.CoroutineStack:Push(task)
-    local preState = task:GetState()
-	local suc, info = coroutine.resume(task.co)
+
+    local preState,suc,info
+
+    if task:IsOrphan() then
+        preState = task:GetState()
+        suc, info = coroutine.resume(task.co)
+    else
+        self.curTree = task.belongTree
+        local coStack = task.belongTree:GetCoStack()
+        coStack:Push(task)
+        preState = task:GetState()
+        suc, info = coroutine.resume(task.co)
+        coStack:Pop()
+    
+    end
     ---CoroutineReturnInfo类型来自 Task:Init的wrappedFunc
     ---nil类型来自 coroutine.yield()
     ---@cast info CoroutineReturnInfo|nil
-    
-
-    self.CoroutineStack:Pop()
 
     -- 如果是第一次启动，需要添加到树状结构管理里
     if preState == TaskEnum_StateType.Idle then
@@ -178,10 +206,23 @@ function CoroutineFactory:GetDeltaTime()
     return self.curDeltaTime
 end
 
+function CoroutineFactory:GetCurTree()
+    return self.curTree
+end
+
+function CoroutineFactory:GetOrCreateCurTree(root)
+    local curTree = self:GetCurTree()
+    if curTree == nil then
+        curTree = CO.CoTree.New(root)
+    end
+    return curTree
+end
+
 ---杀死同一tag的协程
 ---@param tag string
 function CoroutineFactory:KillByTag(tag,triggerFailEvent)
     if tag == nil then return end
+
     triggerFailEvent = SetDefault(triggerFailEvent,true)
 
     for i = 1, #self.Coroutines_NextFrameRun do
@@ -257,7 +298,9 @@ end
 
 ---@return Task|nil
 function CoroutineFactory:GetTopCoroutine()
-    return self.CoroutineStack:Peek()
+    if self.curTree == nil then return end
+
+    return self.curTree:GetCoStack():Peek()
 end
 
 --#region Debug方法

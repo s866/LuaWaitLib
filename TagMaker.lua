@@ -25,7 +25,7 @@ function TagMaker:Make(name)
 
     return fullName
 end
-
+---@deprecated 
 function TagMaker:GetAllTagName()
     local r = {}
     for key, value in pairs(self.names) do
@@ -34,6 +34,7 @@ function TagMaker:GetAllTagName()
     return r
 end
 
+---@deprecated 使用CoTree:Kill代替
 function TagMaker:KillAllByTag(triggerFailEvent)
     triggerFailEvent = SetDefault(triggerFailEvent,false)
     for key, value in pairs(self.names) do

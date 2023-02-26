@@ -1,5 +1,10 @@
-local Test = require "Test"
-local Test_AsyncDo = require "AsyncDo.Test_AsyncDo"
+require "Lib"
+require "CoroutineFactory"
 
-Test:All()
-Test_AsyncDo:All()
+
+TestLib = require "Tests.TestLib"
+-- require "Tests.Test" :All()
+-- require "AsyncDo.Test_AsyncDo":All()
+require "Tests.Test_Tree":All()
+
+

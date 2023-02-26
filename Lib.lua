@@ -8,6 +8,7 @@ require 'Misc'
 CO.Stack = require 'Stack'
 require 'Task'
 require 'Event'
+require 'CoTree'
 
 require 'Wait.Lib'
 

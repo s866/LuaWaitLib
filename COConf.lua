@@ -21,6 +21,12 @@ function COLogError(msg,...)
     print(string.format(msg,...))
 end
 
+function SetDefault(value,defaultValue)
+    if value ~= nil then
+        return value
+    end
+    return defaultValue
+end
 
 
 

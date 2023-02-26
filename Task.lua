@@ -12,16 +12,16 @@ local Task = {}
 
 CO.Task = Task
 
-function Task.New(func,tag,isRoot)
+function Task.New(func,tag)
     ---@type Task
     local o = {}
     setmetatable(o,{__index = Task})
-    o:Init(func,tag,isRoot)
+    o:Init(func,tag)
     return o
 end
 
 ---@param tag string
-function Task:Init(func,tag,isRoot)
+function Task:Init(func,tag)
     local wrappedFunc = function (...)
         local res,suc = CO.SafeCall(func,...)
         if not suc then
@@ -38,7 +38,8 @@ function Task:Init(func,tag,isRoot)
     local co = CoroutineFactory:CreateCoroutine(wrappedFunc)
     self.co = co
     self.tag = tag
-    self.isRoot = isRoot
+
+    self.belongTree = nil
     
     ---@private
     self.state = TaskEnum_StateType.Idle
@@ -190,6 +191,28 @@ function Task:IsKilled()
     return self.isPenddingKill
 end
 
+
+
+function Task:IsRoot()
+    return self.belongTree.root == self
+end
+
+---是否是孤儿task
+function Task:IsOrphan()
+    return self.belongTree == nil
+end
+
+-- TODO 转移节点续命，目前只是用来初始化
+---@param tree CoTree
+---@param parentTask ?Task
+function Task:MoveToTree(tree,parentTask)
+    self.belongTree = tree
+
+    -- TODO 转移节点续命
+    -- if parentTask == nil then
+        
+    -- end
+end
 
 function Task:GetState()
     return self.state
