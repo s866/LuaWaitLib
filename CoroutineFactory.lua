@@ -184,7 +184,8 @@ function CoroutineFactory:Update(deltaTime)
             
         else
             -- 无效的则不进行回加，代表删除了
-            
+            ---@diagnostic disable-next-line: invisible
+            task:CleanData()
         end
     end
     

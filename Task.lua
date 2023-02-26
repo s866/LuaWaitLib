@@ -145,12 +145,11 @@ function Task:Kill(triggerFailEvent)
     if triggerFailEvent then
         self:Fail()
     end
-    self:CleanData()
 end
 
 ---@private
 function Task:MakeKilled()
-    -- 设置标志，下一帧移出协程管理
+    -- 设置标志，下一帧移出协程管理，并由协程管理调用CleanData进行清理
     self.isPenddingKill = true
 
     for i = #self.children, 1,-1 do
