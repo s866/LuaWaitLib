@@ -14,20 +14,31 @@ end
 
 function TagMaker:Init(headName)
     self.headName = headName
-    ---@type string[]
+    ---@type table<string,boolean>
     self.names = {}
 end
 
 
 function TagMaker:Make(name)
     local fullName = string.format('%s_%s',self.headName,name)
-    VectorT:Push_back(self.names,fullName)
+    self.names[fullName] = true
 
     return fullName
 end
 
 function TagMaker:GetAllTagName()
-    return self.names
+    local r = {}
+    for key, value in pairs(self.names) do
+        VectorT:Push_back(r,key)
+    end
+    return r
+end
+
+function TagMaker:KillAllByTag(triggerFailEvent)
+    triggerFailEvent = SetDefault(triggerFailEvent,false)
+    for key, value in pairs(self.names) do
+        CoroutineFactory:KillByTag(key,triggerFailEvent)
+    end
 end
 
 function TagMaker:Clean()

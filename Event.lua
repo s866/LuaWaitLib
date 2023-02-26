@@ -4,17 +4,17 @@ local Event = {}
 
 CO.Event = Event
 
-function Event.New(tag,func)
-    ---@class Event
+function Event.New(tag,func,isRoot)
+    ---@type Event
     local o = {}
 
     setmetatable(o,{__index = Event})
-    o:Init(tag,func)
+    o:Init(tag,func,isRoot)
     return o
 end
 
-function Event:Init(tag,func)
-    self.runTask = CoroutineFactory:CreateTask(tag,func,false)
+function Event:Init(tag,func,isRoot)
+    self.runTask = CoroutineFactory:CreateTask(tag,func,false,isRoot)
 end
 
 function Event:Run()

@@ -38,7 +38,10 @@ end
 
 function CustomWaitWrapper:WaitUpdate(deltaTime)
     if self.customFunc(deltaTime) == true then
+        -- 同一帧执行的情况下，ResumeCoroutine调用会添加等待协程到下一帧列表里，
+        -- 从而导致下一帧列表多出了一份等待协程
         self:HurryUpTask()
+        return true
     end
     return false
 end
@@ -143,7 +146,9 @@ function EventsWaitWrapper:Init(events,eventsWaitOpt,errorProcessData)
     self.errorProcessData = errorProcessData
 
 
-    self.eventSuccessCount = 0
+    -- 初始化成功数量
+    self.eventSuccessCount = self:GetSuccessCount()
+
     -- 必须在等待的事件触发后马上触发，否则可能出现帧延迟的情况
     self.OnEventSuccessFunc = function ()
         if self.eventsWaitOpt == COWaitEnum_WaitTaskOpt.WaitAny then
@@ -200,6 +205,29 @@ function EventsWaitWrapper:CleanEventSuccessListener()
         end
     end
 end
+
+function EventsWaitWrapper:GetSuccessCount()
+    local sucCount = 0
+    for i = 1, #self.events do
+        local event = self.events[i]
+        local state = event:GetState()
+        if state == TaskEnum_StateType.Success 
+            or  (
+                    state == TaskEnum_StateType.Error
+                    and self.errorProcessData.opt == COWaitEnum_EventErrorOpt.ErrorAsSuccess
+                )
+        then
+            sucCount = sucCount + 1
+
+        end
+    end
+    return sucCount
+end
+
+function EventsWaitWrapper:IsSuccess()
+    return self:GetSuccessCount() >= #self.events
+end
+
 
 
 ---@class FrameWaitWrapper : IWaitWrapper
@@ -330,6 +358,9 @@ function EventsTimeoutWaitWrapper:IsTimeout()
     return self.timeWaitWrapper:IsEnd()
 end
 
+function EventsTimeoutWaitWrapper:IsSuccess()
+    return not self:IsTimeout() and self.eventsWaitWrapper:IsSuccess()
+end
 
 
 

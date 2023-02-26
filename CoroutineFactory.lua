@@ -13,7 +13,7 @@ CoroutineFactory.curDeltaTime = 0
 
 CoroutineFactory.debug = CO.GetDebugFlag()
 CoroutineFactory.MAX_WAIT_TIME = 100
-
+CoroutineFactory.FrameCount = 0
 
 
 local function CoroutineTracer_NewFunctionCall(triggerType)
@@ -33,7 +33,7 @@ end
 function CoroutineFactory:Clean()
     self.Coroutines_NextFrameRun = {}
     self.CoroutineStack = CO.Stack.New()
-
+    
 end
 
 function CoroutineFactory:CreateCoroutine(func)
@@ -49,12 +49,14 @@ end
 ---创建一个任务，不可被等待的被称为任务，一般根节点都为任务
 ---@param tag string 标签
 ---@param func async function 协程执行的函数
----@param autoStart ?boolean 自动启动
+---@param autoStart ?boolean （默认true）自动启动
+---@param isRoot ?boolean （默认true）是否为Root节点
 ---@return Task
-function CoroutineFactory:CreateTask(tag,func,autoStart)
+function CoroutineFactory:CreateTask(tag,func,autoStart,isRoot)
     if autoStart == nil then autoStart = true end
-    
-    local task = CO.Task.New(func,tag)
+    if isRoot == nil then isRoot = true end
+
+    local task = CO.Task.New(func,tag,isRoot)
     if autoStart == true then
         task:Run()
     end
@@ -64,12 +66,14 @@ end
 ---创建一个事件，事件可以被等待
 ---@param tag string 标签
 ---@param func async function 事件执行的函数
----@param autoStart ?boolean 自动启动
+---@param autoStart ?boolean （默认true）自动启动
+---@param isRoot ?boolean （默认true）是否为Root节点
 ---@return Event
-function CoroutineFactory:CreateEvent(tag,func,autoStart)
+function CoroutineFactory:CreateEvent(tag,func,autoStart,isRoot)
     if autoStart == nil then autoStart = true end
+    if isRoot == nil then isRoot = true end
     
-    local e = CO.Event.New(tag,func)
+    local e = CO.Event.New(tag,func,isRoot)
     if autoStart == true then
         e:Run()
     end
@@ -81,6 +85,12 @@ function CoroutineFactory:CreateWaitEvent(tag,timeSecond,autoStart)
         CO.Wait:Wait(timeSecond)
     end,autoStart)
 end
+
+function CoroutineFactory:CreateCustomWaitEvent(tag,waitFunc,autoStart)
+    return self:CreateEvent(tag,waitFunc,autoStart)
+end
+
+
 
 
 
@@ -128,13 +138,13 @@ function CoroutineFactory:ResumeCoroutine(task)
         task:SetWaitWrapper(info.waitWrapperIns)
     end
 
-    self:AddCoroutineData(task)
+    self:AddCoroutineData_Checked(task)
 end
 
 
 function CoroutineFactory:Update(deltaTime)
     self:SetDeltaTime(deltaTime)
-    
+    self.FrameCount = self.FrameCount + 1
     
     local temp = self.Coroutines_NextFrameRun
     self.Coroutines_NextFrameRun = {}
@@ -145,7 +155,7 @@ function CoroutineFactory:Update(deltaTime)
                 -- 存在则调用更新
                 if not task:UpdateWaitWrapper(deltaTime) then
                     -- 如果未等到结束就加回去等下一帧遍历
-                    self:AddCoroutineData(task)
+                    self:AddCoroutineData_Checked(task)
                 end
             else
                 -- 不存在则每帧调用run
@@ -170,13 +180,18 @@ end
 
 ---杀死同一tag的协程
 ---@param tag string
-function CoroutineFactory:KillByTag(tag)
+function CoroutineFactory:KillByTag(tag,triggerFailEvent)
     if tag == nil then return end
+    triggerFailEvent = SetDefault(triggerFailEvent,true)
 
     for i = 1, #self.Coroutines_NextFrameRun do
         local task = self.Coroutines_NextFrameRun[i]
         if task.tag == tag then
-            task:Kill()
+            if triggerFailEvent == true then
+                task:Kill()
+            else
+                task:Kill_Pure()
+            end
         end
     end
 end
@@ -209,14 +224,35 @@ end
 
 ---@private
 ---@param data Task
-function CoroutineFactory:AddCoroutineData(data)
-    table.insert(self.Coroutines_NextFrameRun,data)
-    return data
+function CoroutineFactory:AddCoroutineData_Checked(data)
+    -- 由于hurryup是同一帧执行，所以会出现重复添加的情况，这里需要过滤
+    for i = 1, #self.Coroutines_NextFrameRun do
+        if data == self.Coroutines_NextFrameRun[i] then
+            return false
+        end
+    end
+    
+    self:AddCoroutineData_Internal(data)
+    return true
 end
 
+---@private
+---@param data Task
+function CoroutineFactory:AddCoroutineData_Internal(data)
+    table.insert(self.Coroutines_NextFrameRun,data)
+    return data
+    
+end
 
-
-
+function CoroutineFactory:IsCoroutineExist(tag)
+    for i = 1, #self.Coroutines_NextFrameRun do
+        local co = self.Coroutines_NextFrameRun[i]
+        if co.tag == tag then
+            return true
+        end
+    end
+    return false
+end
 
 
 ---@return Task|nil

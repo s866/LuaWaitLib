@@ -46,7 +46,7 @@ end
 ---@param datas T[]
 ---@param tag string
 ---@param timespan number
----@param callFunc fun(data:T)
+---@param callFunc fun(curIndex:integer,data:T)
 ---@return Event
 function AsyncDo:QueueDo_ByTime(tag,datas,timespan,callFunc)
     return self:QueueDo_ByDynamicTime(tag,datas,function (index, data)
@@ -59,8 +59,8 @@ end
 ---@generic T
 ---@param datas T[]
 ---@param tag string
----@param getTimeSpanFunc fun(index,data:T):number 获取当前下标下的时间间隔
----@param callFunc fun(data:T)
+---@param getTimeSpanFunc fun(curIndex:integer,data:T):number 获取当前下标下的时间间隔
+---@param callFunc fun(curIndex:integer,data:T)
 ---@return Event
 function AsyncDo:QueueDo_ByDynamicTime(tag,datas,getTimeSpanFunc,callFunc)
     local event = CoroutineFactory:CreateEvent(tag,function ()
@@ -77,7 +77,7 @@ function AsyncDo:QueueDo_ByDynamicTime(tag,datas,getTimeSpanFunc,callFunc)
                 curTime = curTime + deltaTime
 
             else
-                callFunc(datas[curIndex])
+                callFunc(curIndex,datas[curIndex])
                 curIndex = curIndex + 1
                 curTime = 0
             end
@@ -89,6 +89,49 @@ function AsyncDo:QueueDo_ByDynamicTime(tag,datas,getTimeSpanFunc,callFunc)
             end
         end)
         
+    end)
+    return event
+end
+
+---根据一定的时间间隔循环执行函数
+---@param tag any
+---@param timespan number
+---@param execFunc fun(execCount:integer):boolean 返回值true则代表结束
+---@param execOnStart ?boolean （默认false）是否启动就执行一次函数
+---@return Event
+function AsyncDo:Exec_ByTime(tag,timespan,execFunc,execOnStart)
+    execOnStart = SetDefault(execOnStart,false)
+
+    local curTime = 0
+    local execCount = 0
+    if execOnStart then curTime = timespan end
+
+    local event = self:Exec_ByFrameTick(tag,function (deltaTime, _)
+        if curTime < timespan then
+            curTime = curTime + deltaTime
+        else
+            execCount = execCount + 1
+            curTime = 0
+        end
+        return execFunc(execCount)
+    end)
+
+    return event
+end
+
+---每帧执行函数
+---@param tag any
+---@param execFunc fun(deltaTime,execCount:integer):boolean 返回值true则代表结束
+---@return Event
+function AsyncDo:Exec_ByFrameTick(tag,execFunc)
+    local event = CoroutineFactory:CreateEvent(tag,function ()
+        local execCount = 0
+
+        CO.Wait:CustomWait(function (deltaTime)
+            execCount = execCount + 1
+            return execFunc(deltaTime,execCount)
+        end)
+
     end)
     return event
 end

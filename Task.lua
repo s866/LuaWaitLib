@@ -12,16 +12,16 @@ local Task = {}
 
 CO.Task = Task
 
-function Task.New(func,tag)
+function Task.New(func,tag,isRoot)
     ---@type Task
     local o = {}
     setmetatable(o,{__index = Task})
-    o:Init(func,tag)
+    o:Init(func,tag,isRoot)
     return o
 end
 
 ---@param tag string
-function Task:Init(func,tag)
+function Task:Init(func,tag,isRoot)
     local wrappedFunc = function (...)
         local res,suc = CO.SafeCall(func,...)
         if not suc then
@@ -38,6 +38,7 @@ function Task:Init(func,tag)
     local co = CoroutineFactory:CreateCoroutine(wrappedFunc)
     self.co = co
     self.tag = tag
+    self.isRoot = isRoot
     
     ---@private
     self.state = TaskEnum_StateType.Idle
@@ -74,7 +75,6 @@ function Task:HurryUp()
         if not suc then
             COLogError('*** %s HurryUp ERROR ***',self:ToString())
             self:Kill()
-            self:Fail()
         end
     end
 end
@@ -91,7 +91,6 @@ function Task:UpdateWaitWrapper(deltaTime)
         -- update出现错误了，这里需要进行清理
         self:Kill()
         -- 因为协程函数并没有失败，只是waitwrapper失败了，所以不能通过协程状态来判断，需要直接设置fail
-        self:Fail()
     end
     return isFinish
 end
@@ -140,20 +139,33 @@ end
 
 
 function Task:Kill()
+    self:Kill_Pure()
+    self:Fail()
+end
+
+function Task:Kill_Pure()
     -- 设置标志，下一帧清理
     self.isPenddingKill = true
 
-    for i = 1, #self.children do
+    for i = #self.children, 1,-1 do
         self.children[i]:Kill()
     end
 
     if self.parent ~= nil then
-        -- 把自己从parent的children里拿出，防止内存泄漏
-        self.parent:RemoveChild(self)    
+        -- 只从有效的父节点移除，否则会在 for i = 1, #self.children do 循环内移除元素，导致数组越界
+        -- if not self.parent:IsKilled() then
+        --     -- 把自己从parent的children里拿出，防止内存泄漏
+        --     self.parent:RemoveChild(self)
+        --     self.parent = nil
+            
+        -- end
+
+        -- 倒序遍历可以再遍历里移除元素
+        self.parent:RemoveChild(self)
         self.parent = nil
     end
-    
 end
+
 
 function Task:IsValid()
     if self:IsKilled() then

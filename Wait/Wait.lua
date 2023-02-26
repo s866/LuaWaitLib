@@ -109,7 +109,7 @@ function Wait:WaitEvents_Internal(events,eventWaitOpt,timeout,timeoutOpt,errorPr
     local retData = {waitWrapperIns = eventWrapper}
     coroutine.yield(retData)
 
-    return not eventWrapper:IsTimeout()
+    return eventWrapper:IsSuccess()
 end
 
 
@@ -137,7 +137,9 @@ function Wait:CustomWait(customFunc,hurryUpDoFunc)
 
 end
 
-
+---TODO 添加超时
+---自定义规则等待
+---@param ruleFunc fun():boolean 返回true则代表规则匹配成功
 function Wait:WaitRule(ruleFunc)
     self:CustomWait(function (deltaTime)
         return ruleFunc()
