@@ -146,7 +146,7 @@ function CoroutineFactory:ResumeCoroutine(task)
     if task:GetCoroutineStatus() == "dead" then
         ---@cast info -nil
         -- 如果时dead，Task:Init的wrappedFunc确保了不为nil
-        task:Kill_Pure()
+        task:Kill(false)
         task:UpdateState(info.IsSuccess)
         return
     end
@@ -225,11 +225,7 @@ function CoroutineFactory:KillByTag(tag,triggerFailEvent)
     for i = 1, #self.Coroutines_NextFrameRun do
         local task = self.Coroutines_NextFrameRun[i]
         if task.tag == tag then
-            if triggerFailEvent == true then
-                task:Kill()
-            else
-                task:Kill_Pure()
-            end
+            task:Kill(triggerFailEvent)
         end
     end
 end

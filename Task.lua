@@ -138,13 +138,18 @@ function Task:RemoveErrorListener(func)
     end
 end
 
-
-function Task:Kill()
-    self:Kill_Pure()
-    self:Fail()
+---@param triggerFailEvent ?boolean （默认true）是否出发Fail事件
+function Task:Kill(triggerFailEvent)
+    triggerFailEvent = SetDefault(triggerFailEvent,true)
+    self:MakeKilled()
+    if triggerFailEvent then
+        self:Fail()
+    end
+    self:CleanData()
 end
 
-function Task:Kill_Pure()
+---@private
+function Task:MakeKilled()
     -- 设置标志，下一帧移出协程管理
     self.isPenddingKill = true
 
@@ -165,9 +170,11 @@ function Task:Kill_Pure()
         self.parent:RemoveChild(self)
         self.parent = nil
     end
+end
 
-    -- 清理数据，保留tag，便于debug
-
+---清理数据，保留tag，便于debug
+---@private
+function Task:CleanData()
     self.co = nil
     self.belongTree = nil
     self.children = nil
@@ -175,7 +182,6 @@ function Task:Kill_Pure()
     self.successListeners = nil
     self.errorListeners = nil
 end
-
 
 function Task:IsValid()
     if self:IsKilled() then
@@ -284,7 +290,7 @@ end
 ---@param child Task
 function Task:AddChild(child)
     if child == nil then return end
-    
+
     if child:IsEnd() then 
         COLogError(string.format('%s AddChild %s fail',self:ToString(),child:ToString()))
         return

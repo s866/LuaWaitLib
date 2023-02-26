@@ -52,9 +52,5 @@ end
 
 function CoTree:Kill(triggerFailEvent)
     triggerFailEvent = SetDefault(triggerFailEvent,false)
-    if triggerFailEvent == true then
-        self.root:Kill()
-    else
-        self.root:Kill_Pure()
-    end
+    self.root:Kill(triggerFailEvent)
 end
