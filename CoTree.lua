@@ -15,15 +15,10 @@ end
 
 ---@param root Task
 function CoTree:Init(root)
-    self.coStack = CO.Stack.New()
     self.root = root
 
 end
 
-
-function CoTree:GetCoStack()
-    return self.coStack
-end
 
 function CoTree:GetAllTagName()
     local tags = {}

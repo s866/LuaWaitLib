@@ -10,8 +10,9 @@ function Test_Tree:TwoTree()
             CO.Wait:WaitFrameCount(2)
             
             isFinish = true
+            print('t2 finish')
         end)
-        
+        print('t1 finish')
     end)
 
     local t1t = t1.belongTree:GetAllTagName()

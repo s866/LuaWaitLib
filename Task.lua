@@ -145,7 +145,7 @@ function Task:Kill()
 end
 
 function Task:Kill_Pure()
-    -- 设置标志，下一帧清理
+    -- 设置标志，下一帧移出协程管理
     self.isPenddingKill = true
 
     for i = #self.children, 1,-1 do
@@ -165,6 +165,15 @@ function Task:Kill_Pure()
         self.parent:RemoveChild(self)
         self.parent = nil
     end
+
+    -- 清理数据，保留tag，便于debug
+
+    self.co = nil
+    self.belongTree = nil
+    self.children = nil
+    self.parent = nil
+    self.successListeners = nil
+    self.errorListeners = nil
 end
 
 
@@ -275,6 +284,7 @@ end
 ---@param child Task
 function Task:AddChild(child)
     if child == nil then return end
+    
     if child:IsEnd() then 
         COLogError(string.format('%s AddChild %s fail',self:ToString(),child:ToString()))
         return

@@ -8,11 +8,10 @@
 CoroutineFactory = {}
 ---@type Task[]
 CoroutineFactory.Coroutines_NextFrameRun = {}
-CoroutineFactory.curTree = nil
+CoroutineFactory.coStack = CO.Stack.New()
 CoroutineFactory.curDeltaTime = 0
 
 CoroutineFactory.debug = CO.GetDebugFlag()
-CoroutineFactory.MAX_WAIT_TIME = 100
 CoroutineFactory.FrameCount = 0
 
 
@@ -32,8 +31,7 @@ end
 
 function CoroutineFactory:Clean()
     self.Coroutines_NextFrameRun = {}
-    self.curTree = nil
-    
+    self.coStack = CO.Stack.New()
 end
 
 function CoroutineFactory:CreateCoroutine(func)
@@ -118,39 +116,32 @@ end
 function CoroutineFactory:ResumeCoroutine(task)
     if task == nil then return end
     
+    local lastResumeTask = self:GetTopTask()
 
-    local preState,suc,info
-
-    if task:IsOrphan() then
-        preState = task:GetState()
-        suc, info = coroutine.resume(task.co)
-    else
-        self.curTree = task.belongTree
-        local coStack = task.belongTree:GetCoStack()
-        coStack:Push(task)
-        preState = task:GetState()
-        suc, info = coroutine.resume(task.co)
-        coStack:Pop()
-    
+    -- 如果是第一次启动，需要添加到树状结构管理里
+    if task:GetState() == TaskEnum_StateType.Idle then
+        if lastResumeTask ~= nil 
+            and lastResumeTask.belongTree == task.belongTree
+            and not lastResumeTask:IsOrphan() 
+            and not task:IsOrphan() 
+        then
+            lastResumeTask:AddChild(task)
+        end
     end
+    self:PushCoStack(task)
+    local suc, info = coroutine.resume(task.co)
+    self:PopCoStack()
+
     ---CoroutineReturnInfo类型来自 Task:Init的wrappedFunc
     ---nil类型来自 coroutine.yield()
     ---@cast info CoroutineReturnInfo|nil
-
-    -- 如果是第一次启动，需要添加到树状结构管理里
-    if preState == TaskEnum_StateType.Idle then
-        local topTask = self:GetTopCoroutine()
-        if topTask ~= nil then
-            topTask:AddChild(task)
-        end
-    end
-
 
     if not suc then
         task:Kill()
         self:PrintDebugInfo()
         return
     end
+
 
     if task:GetCoroutineStatus() == "dead" then
         ---@cast info -nil
@@ -159,6 +150,7 @@ function CoroutineFactory:ResumeCoroutine(task)
         task:UpdateState(info.IsSuccess)
         return
     end
+
     -- 必须在所有resume执行后的后续处理操作完成后，才能进行update，不然有的状态没有及时更新，比如isPenddingKill
     task:UpdateState()
 
@@ -207,7 +199,12 @@ function CoroutineFactory:GetDeltaTime()
 end
 
 function CoroutineFactory:GetCurTree()
-    return self.curTree
+    local curTask = self:GetTopTask()
+    if curTask == nil or curTask:IsOrphan() then
+        return nil
+    else
+        return curTask.belongTree
+    end
 end
 
 function CoroutineFactory:GetOrCreateCurTree(root)
@@ -295,12 +292,33 @@ function CoroutineFactory:IsCoroutineExist(tag)
     return false
 end
 
+function CoroutineFactory:PushCoStack(task)
+    self.coStack:Push(task)
+end
 
----@return Task|nil
-function CoroutineFactory:GetTopCoroutine()
-    if self.curTree == nil then return end
+function CoroutineFactory:PopCoStack()
+    local task = self.coStack:Pop()
+    if task == nil then return end
+    -- 确保有效性
+    while task:IsKilled() do
+        task = self.coStack:Pop()
+        if task == nil then return end
+    end
 
-    return self.curTree:GetCoStack():Peek()
+    return task
+end
+
+function CoroutineFactory:GetTopTask()
+    ---@type Task
+    local task = self.coStack:Peek()
+    if task == nil then return end
+
+    -- 确保有效性
+    while task:IsKilled() do
+        self.coStack:Pop()
+        task = self.coStack:Peek()
+    end
+    return task
 end
 
 --#region Debug方法
