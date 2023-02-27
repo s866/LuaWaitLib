@@ -179,10 +179,10 @@ end
 function Task:CleanData()
     self.co = nil
     self.belongTree = nil
-    self.children = nil
+    self.children = {}
     self.parent = nil
-    self.successListeners = nil
-    self.errorListeners = nil
+    self.successListeners = {}
+    self.errorListeners = {}
 end
 
 function Task:IsValid()
